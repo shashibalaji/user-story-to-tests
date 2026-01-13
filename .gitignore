@@ -8,6 +8,11 @@ build/
 */dist/
 */build/
 
+# Environment files
+.env
+.env.local
+.env.*.local
+
 # Vite cache
 .vite/
 */.vite/
