@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { generateTests } from './api'
-import { GenerateRequest, GenerateResponse, TestCase } from './types'
+import { generateTests, searchJiraIssues, getJiraIssueDetails } from './api'
+import { GenerateRequest, GenerateResponse, TestCase, JiraIssueSummary } from './types'
 //Branching test
 function App() {
   const [formData, setFormData] = useState<GenerateRequest>({
@@ -14,6 +14,12 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [expandedTestCases, setExpandedTestCases] = useState<Set<string>>(new Set())
+
+  const [jiraSearch, setJiraSearch] = useState('')
+  const [jiraOptions, setJiraOptions] = useState<JiraIssueSummary[]>([])
+  const [jiraLoading, setJiraLoading] = useState(false)
+  const [jiraSelected, setJiraSelected] = useState<JiraIssueSummary | null>(null)
+  const [jiraError, setJiraError] = useState<string | null>(null)
 
   const CATEGORY_OPTIONS = ['Positive', 'Negative', 'Edge', 'Authorization', 'Non-Functional']
 
@@ -60,6 +66,47 @@ function App() {
       setError(err instanceof Error ? err.message : 'Failed to generate tests')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Search Jira issues as user types
+  const handleJiraSearch = async (q: string) => {
+    setJiraSearch(q)
+    setJiraError(null)
+    if (!q.trim()) {
+      setJiraOptions([])
+      return
+    }
+    setJiraLoading(true)
+    try {
+      const results = await searchJiraIssues(q)
+      setJiraOptions(results)
+    } catch (err) {
+      setJiraError('Failed to search Jira issues')
+      setJiraOptions([])
+    } finally {
+      setJiraLoading(false)
+    }
+  }
+
+  // When user selects a Jira issue, fetch details and fill form
+  const handleJiraSelect = async (issue: JiraIssueSummary) => {
+    setJiraSelected(issue)
+    setJiraSearch(issue.summary)
+    setJiraOptions([])
+    setJiraLoading(true)
+    try {
+      const details = await getJiraIssueDetails(issue.id)
+      setFormData(prev => ({
+        ...prev,
+        storyTitle: details.title || '',
+        description: details.description || '',
+        acceptanceCriteria: details.acceptanceCriteria || ''
+      }))
+    } catch (err) {
+      setJiraError('Failed to fetch Jira issue details')
+    } finally {
+      setJiraLoading(false)
     }
   }
 
@@ -388,8 +435,45 @@ function App() {
           <h1 className="title">User Story to Tests</h1>
           <p className="subtitle">Generate comprehensive test cases from your user stories</p>
         </div>
-        
         <form onSubmit={handleSubmit} className="form-container">
+          {/* JIRA SEARCH DROPDOWN */}
+          <div className="form-group">
+            <label className="form-label">Jira Issue</label>
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Search Jira issues..."
+              value={jiraSearch}
+              onChange={e => handleJiraSearch(e.target.value)}
+              autoComplete="off"
+            />
+            {jiraLoading && <div style={{ color: '#888', fontSize: 13 }}>Searching...</div>}
+            {jiraError && <div style={{ color: 'red', fontSize: 13 }}>{jiraError}</div>}
+            {jiraOptions.length > 0 && (
+              <div style={{
+                border: '1px solid #e1e8ed',
+                borderRadius: 6,
+                background: '#fff',
+                marginTop: 2,
+                maxHeight: 180,
+                overflowY: 'auto',
+                zIndex: 10,
+                position: 'absolute',
+                width: '100%'
+              }}>
+                {jiraOptions.map(opt => (
+                  <div
+                    key={opt.id}
+                    style={{ padding: 10, cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
+                    onClick={() => handleJiraSelect(opt)}
+                  >
+                    <b>{opt.id}</b>: {opt.summary}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="form-group">
             <label htmlFor="storyTitle" className="form-label">
               Story Title *

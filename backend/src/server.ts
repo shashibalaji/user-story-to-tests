@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import path from 'path'
 import { generateRouter } from './routes/generate'
+import { jiraRouter } from './routes/jira'
 
 // Load environment variables from root directory
 const envPath = path.join(__dirname, '../../.env')
@@ -16,6 +17,9 @@ console.log(`CORS_ORIGIN: ${process.env.CORS_ORIGIN}`)
 console.log(`groq_API_BASE: ${process.env.groq_API_BASE}`)
 console.log(`groq_API_KEY: ${process.env.groq_API_KEY ? 'SET' : 'NOT SET'}`)
 console.log(`groq_MODEL: ${process.env.groq_MODEL}`)
+console.log(`JIRA_BASE_URL: ${process.env.JIRA_BASE_URL}`)
+console.log(`JIRA_EMAIL: ${process.env.JIRA_EMAIL}`)
+console.log(`JIRA_API_TOKEN: ${process.env.JIRA_API_TOKEN ? 'SET' : 'NOT SET'}`)
 
 const app = express()
 const PORT = process.env.PORT || 8080
@@ -26,7 +30,7 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:5174',
     process.env.CORS_ORIGIN
-  ].filter(Boolean),
+  ].filter((v): v is string => Boolean(v)),
   credentials: true
 }))
 app.use(express.json({ limit: '10mb' }))
@@ -39,6 +43,7 @@ app.get('/api/health', (req, res) => {
 
 // API routes
 app.use('/api/generate-tests', generateRouter)
+app.use('/api/jira', jiraRouter)
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

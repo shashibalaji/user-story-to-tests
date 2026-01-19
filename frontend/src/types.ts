@@ -21,3 +21,15 @@ export interface GenerateResponse {
   promptTokens: number
   completionTokens: number
 }
+
+export interface JiraIssueSummary {
+  id: string;
+  summary: string;
+}
+
+export interface JiraIssueDetails {
+  id: string;
+  title: string;
+  description: string;
+  acceptanceCriteria: string;
+}

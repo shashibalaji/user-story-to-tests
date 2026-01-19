@@ -1,4 +1,4 @@
-import { GenerateRequest, GenerateResponse } from './types'
+import { GenerateRequest, GenerateResponse, JiraIssueSummary, JiraIssueDetails } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api'
 
@@ -23,4 +23,17 @@ export async function generateTests(request: GenerateRequest): Promise<GenerateR
     console.error('Error generating tests:', error)
     throw error instanceof Error ? error : new Error('Unknown error occurred')
   }
+}
+
+export async function searchJiraIssues(query: string): Promise<JiraIssueSummary[]> {
+  const response = await fetch(`${API_BASE_URL}/jira/issues?search=${encodeURIComponent(query)}`)
+  if (!response.ok) throw new Error('Failed to search Jira issues')
+  const data = await response.json()
+  return data.issues as JiraIssueSummary[]
+}
+
+export async function getJiraIssueDetails(id: string): Promise<JiraIssueDetails> {
+  const response = await fetch(`${API_BASE_URL}/jira/issues/${id}`)
+  if (!response.ok) throw new Error('Failed to fetch Jira issue details')
+  return await response.json() as JiraIssueDetails
 }
