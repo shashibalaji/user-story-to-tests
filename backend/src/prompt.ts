@@ -1,3 +1,18 @@
+export const FEATURE_FILE_PROMPT = `You are a senior QA engineer. Your task is to convert a list of test cases into a Cucumber feature file using Gherkin syntax. Each test case should be represented as a scenario. Use clear, concise language and ensure all provided test cases are covered. Return ONLY the feature file content, no explanations or extra text.`
+
+export function buildFeatureFilePrompt({ storyTitle, description, cases }: { storyTitle: string, description?: string, cases: Array<any> }): string {
+  let prompt = `${FEATURE_FILE_PROMPT}\n\n`;
+  prompt += `Feature: ${storyTitle}\n`;
+  if (description) {
+    prompt += `  ${description}\n`;
+  }
+  prompt += `\nScenarios to cover:\n`;
+  cases.forEach((testCase: any, idx: number) => {
+    prompt += `- ${testCase.title} (${testCase.category})\n`;
+  });
+  prompt += `\nGenerate the complete feature file covering all scenarios above.`;
+  return prompt;
+}
 import { GenerateRequest } from './schemas'
 
 export const SYSTEM_PROMPT = `You are a senior QA engineer with expertise in creating comprehensive test cases from user stories. Your task is to analyze user stories and generate detailed test cases.

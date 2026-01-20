@@ -1,8 +1,82 @@
 import { useState } from 'react'
-import { generateTests, searchJiraIssues, getJiraIssueDetails } from './api'
 import { GenerateRequest, GenerateResponse, TestCase, JiraIssueSummary } from './types'
-//Branching test
+import { generateTests, searchJiraIssues, getJiraIssueDetails, generateFeatureFile } from './api'
+
 function App() {
+
+
+          const toggleCategory = (category: string) => {
+            setFormData(prev => {
+              const prevCats = prev.categories || [];
+              if (prevCats.includes(category)) {
+                return { ...prev, categories: prevCats.filter(c => c !== category) };
+              } else {
+                return { ...prev, categories: [...prevCats, category] };
+              }
+            });
+          };
+
+          const toggleTestCaseExpansion = (testCaseId: string) => {
+            setExpandedTestCases(prev => {
+              const newSet = new Set(prev);
+              if (newSet.has(testCaseId)) newSet.delete(testCaseId);
+              else newSet.add(testCaseId);
+              return newSet;
+            });
+          };
+        const handleJiraSelect = async (issue: JiraIssueSummary) => {
+          setJiraSelected(issue);
+          setJiraSearch(issue.summary);
+          setJiraOptions([]);
+          try {
+            const details = await getJiraIssueDetails(issue.id);
+            console.log('Jira details:', details); // Debug log
+            setFormData(prev => ({
+              ...prev,
+              storyTitle: details.title || '',
+              description: details.description || '',
+              acceptanceCriteria: details.acceptanceCriteria || ''
+            }));
+          } catch (err) {
+            setJiraError('Failed to fetch Jira issue details');
+          }
+        };
+      const handleInputChange = (field: keyof GenerateRequest, value: string) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+      };
+
+      const handleJiraSearch = async (query: string) => {
+        setJiraSearch(query);
+        if (!query.trim()) {
+          setJiraOptions([]);
+          return;
+        }
+        try {
+          const results = await searchJiraIssues(query);
+          console.log('Jira search results:', results);
+          setJiraOptions(results);
+        } catch (err) {
+          setJiraError('Failed to search Jira issues');
+        }
+      };
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsLoading(true);
+      setError(null);
+      setResults(null);
+      try {
+        const response = await generateTests(formData);
+        setResults(response);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to generate tests');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+  const [featureFile, setFeatureFile] = useState<string | null>(null)
+  const [featureLoading, setFeatureLoading] = useState<boolean>(false)
+  const [featureError, setFeatureError] = useState<string | null>(null)
+
   const [formData, setFormData] = useState<GenerateRequest>({
     storyTitle: '',
     acceptanceCriteria: '',
@@ -17,98 +91,32 @@ function App() {
 
   const [jiraSearch, setJiraSearch] = useState('')
   const [jiraOptions, setJiraOptions] = useState<JiraIssueSummary[]>([])
+  // Debug log for Jira options
+  console.log('jiraOptions:', jiraOptions);
   const [jiraLoading, setJiraLoading] = useState(false)
   const [jiraSelected, setJiraSelected] = useState<JiraIssueSummary | null>(null)
   const [jiraError, setJiraError] = useState<string | null>(null)
 
   const CATEGORY_OPTIONS = ['Positive', 'Negative', 'Edge', 'Authorization', 'Non-Functional']
 
-  const toggleTestCaseExpansion = (testCaseId: string) => {
-    const newExpanded = new Set(expandedTestCases)
-    if (newExpanded.has(testCaseId)) {
-      newExpanded.delete(testCaseId)
-    } else {
-      newExpanded.add(testCaseId)
-    }
-    setExpandedTestCases(newExpanded)
-  }
-
-  const handleInputChange = (field: keyof GenerateRequest, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
-  const toggleCategory = (category: string) => {
-    setFormData(prev => {
-      const prevCats = prev.categories || []
-      if (prevCats.includes(category)) {
-        return { ...prev, categories: prevCats.filter(c => c !== category) }
-      } else {
-        return { ...prev, categories: [...prevCats, category] }
-      }
-    })
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    if (!formData.storyTitle.trim() || !formData.acceptanceCriteria.trim()) {
-      setError('Story Title and Acceptance Criteria are required')
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-    
+  const handleGenerateFeatureFile = async () => {
+    if (!results) return;
+    setFeatureLoading(true);
+    setFeatureError(null);
+    setFeatureFile(null);
     try {
-      const response = await generateTests(formData)
-      setResults(response)
+      const feature = await generateFeatureFile({
+        storyTitle: formData.storyTitle,
+        description: formData.description,
+        cases: results.cases
+      });
+      setFeatureFile(feature);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate tests')
+      setFeatureError(err instanceof Error ? err.message : 'Failed to generate feature file');
     } finally {
-      setIsLoading(false)
+      setFeatureLoading(false);
     }
-  }
-
-  // Search Jira issues as user types
-  const handleJiraSearch = async (q: string) => {
-    setJiraSearch(q)
-    setJiraError(null)
-    if (!q.trim()) {
-      setJiraOptions([])
-      return
-    }
-    setJiraLoading(true)
-    try {
-      const results = await searchJiraIssues(q)
-      setJiraOptions(results)
-    } catch (err) {
-      setJiraError('Failed to search Jira issues')
-      setJiraOptions([])
-    } finally {
-      setJiraLoading(false)
-    }
-  }
-
-  // When user selects a Jira issue, fetch details and fill form
-  const handleJiraSelect = async (issue: JiraIssueSummary) => {
-    setJiraSelected(issue)
-    setJiraSearch(issue.summary)
-    setJiraOptions([])
-    setJiraLoading(true)
-    try {
-      const details = await getJiraIssueDetails(issue.id)
-      setFormData(prev => ({
-        ...prev,
-        storyTitle: details.title || '',
-        description: details.description || '',
-        acceptanceCriteria: details.acceptanceCriteria || ''
-      }))
-    } catch (err) {
-      setJiraError('Failed to fetch Jira issue details')
-    } finally {
-      setJiraLoading(false)
-    }
-  }
+};
 
   return (
     <div>
@@ -465,7 +473,10 @@ function App() {
                   <div
                     key={opt.id}
                     style={{ padding: 10, cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
-                    onClick={() => handleJiraSelect(opt)}
+                    onClick={() => {
+                      console.log('Clicked option:', opt);
+                      handleJiraSelect(opt);
+                    }}
                   >
                     <b>{opt.id}</b>: {opt.summary}
                   </div>
@@ -565,6 +576,28 @@ function App() {
           >
             {isLoading ? 'Generating...' : 'Generate'}
           </button>
+          <button
+            type="button"
+            className="submit-btn"
+            style={{ marginLeft: '10px' }}
+            disabled={!results || featureLoading}
+            onClick={handleGenerateFeatureFile}
+          >
+            {featureLoading ? 'Generating Feature...' : 'Feature File'}
+          </button>
+                {featureError && (
+                  <div className="error-banner">
+                    {featureError}
+                  </div>
+                )}
+
+                {featureFile && (
+                  <div className="feature-modal" style={{ background: '#fff', border: '1px solid #ccc', padding: '20px', marginTop: '20px', borderRadius: '8px', maxWidth: '800px', overflowX: 'auto' }}>
+                    <h3 style={{ marginBottom: '10px' }}>Generated Cucumber Feature File</h3>
+                    <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#f8f8f8', padding: '15px', borderRadius: '6px', fontSize: '1rem' }}>{featureFile}</pre>
+                    <button style={{ marginTop: '10px' }} onClick={() => setFeatureFile(null)}>Close</button>
+                  </div>
+                )}
         </form>
 
         {error && (
@@ -602,15 +635,15 @@ function App() {
                 </thead>
                 <tbody>
                   {results.cases.map((testCase: TestCase) => (
-                    <>
-                      <tr key={testCase.id}>
+                    <tbody key={testCase.id}>
+                      <tr>
                         <td>
                           <div 
                             className={`test-case-id ${expandedTestCases.has(testCase.id) ? 'expanded' : ''}`}
                             onClick={() => toggleTestCaseExpansion(testCase.id)}
                           >
                             <span className={`expand-icon ${expandedTestCases.has(testCase.id) ? 'expanded' : ''}`}>
-                              ▶
+                              5b6
                             </span>
                             {testCase.id}
                           </div>
@@ -650,7 +683,7 @@ function App() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </tbody>
                   ))}
                 </tbody>
               </table>

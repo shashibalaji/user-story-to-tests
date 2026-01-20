@@ -1,3 +1,23 @@
+export async function generateFeatureFile(params: { storyTitle: string, description?: string, cases: any[] }): Promise<string> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/feature-file`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+    }
+    const data = await response.json()
+    return data.featureFile
+  } catch (error) {
+    console.error('Error generating feature file:', error)
+    throw error instanceof Error ? error : new Error('Unknown error occurred')
+  }
+}
 import { GenerateRequest, GenerateResponse, JiraIssueSummary, JiraIssueDetails } from './types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api'
