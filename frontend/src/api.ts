@@ -1,3 +1,23 @@
+export async function generatePageObject(params: { storyTitle: string, description?: string, cases: any[], framework?: string, language?: string }): Promise<string> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/page-object`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+    }
+    const data = await response.json()
+    return data.pageObjectCode
+  } catch (error) {
+    console.error('Error generating POM code:', error)
+    throw error instanceof Error ? error : new Error('Unknown error occurred')
+  }
+}
 export async function generateFeatureFile(params: { storyTitle: string, description?: string, cases: any[] }): Promise<string> {
   try {
     const response = await fetch(`${API_BASE_URL}/feature-file`, {

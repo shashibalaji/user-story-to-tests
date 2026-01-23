@@ -5,6 +5,7 @@ import path from 'path'
 import { generateRouter } from './routes/generate'
 import { jiraRouter } from './routes/jira'
 import { featureFileRouter } from './routes/featureFile'
+import { pageObjectRouter } from './routes/pageObject'
 
 // Load environment variables from root directory
 const envPath = path.join(__dirname, '../../.env')
@@ -46,6 +47,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/generate-tests', generateRouter)
 app.use('/api/jira', jiraRouter)
 app.use('/api/feature-file', featureFileRouter)
+app.use('/api/page-object', pageObjectRouter)
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -1,8 +1,32 @@
 import { useState } from 'react'
 import { GenerateRequest, GenerateResponse, TestCase, JiraIssueSummary } from './types'
-import { generateTests, searchJiraIssues, getJiraIssueDetails, generateFeatureFile } from './api'
+import { generateTests, searchJiraIssues, getJiraIssueDetails, generateFeatureFile, generatePageObject } from './api'
 
 function App() {
+  const [pomCode, setPomCode] = useState<string | null>(null)
+  const [pomLoading, setPomLoading] = useState<boolean>(false)
+  const [pomError, setPomError] = useState<string | null>(null)
+
+  const handleGeneratePOM = async () => {
+    if (!results) return;
+    setPomLoading(true);
+    setPomError(null);
+    setPomCode(null);
+    try {
+      const code = await generatePageObject({
+        storyTitle: formData.storyTitle,
+        description: formData.description,
+        cases: results.cases,
+        framework: 'playwright',
+        language: 'typescript',
+      });
+      setPomCode(code);
+    } catch (err) {
+      setPomError(err instanceof Error ? err.message : 'Failed to generate POM code');
+    } finally {
+      setPomLoading(false);
+    }
+  };
 
 
           const toggleCategory = (category: string) => {
@@ -585,6 +609,27 @@ function App() {
           >
             {featureLoading ? 'Generating Feature...' : 'Feature File'}
           </button>
+          <button
+            type="button"
+            className="submit-btn"
+            style={{ marginLeft: '10px' }}
+            disabled={!results || pomLoading}
+            onClick={handleGeneratePOM}
+          >
+            {pomLoading ? 'Generating POM...' : 'Page Object Class'}
+          </button>
+                {pomError && (
+                  <div className="error-banner">
+                    {pomError}
+                  </div>
+                )}
+                {pomCode && (
+                  <div className="feature-modal" style={{ background: '#fff', border: '1px solid #ccc', padding: '20px', marginTop: '20px', borderRadius: '8px', maxWidth: '800px', overflowX: 'auto' }}>
+                    <h3 style={{ marginBottom: '10px' }}>Generated Page Object Model (Playwright/TypeScript)</h3>
+                    <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#f8f8f8', padding: '15px', borderRadius: '6px', fontSize: '1rem' }}>{pomCode}</pre>
+                    <button style={{ marginTop: '10px' }} onClick={() => setPomCode(null)}>Close</button>
+                  </div>
+                )}
                 {featureError && (
                   <div className="error-banner">
                     {featureError}
